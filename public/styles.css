@@ -1038,8 +1038,9 @@ body.side-collapsed .side-rail:hover { background: var(--panel-soft); color: var
 }
 .side-rail .pill { padding: 0 5px; height: 16px; font-size: 9.5px; }
 
-/* dragging something? lend the panel back for the duration of the drag,
-   so "park this in My items" still works while collapsed */
+/* Peek open only when you actually go to the spine — hovering it, or dragging
+   onto it. Opening on every drag made the board jump for moves that were
+   never headed here. */
 body.side-collapsed.side-peek { --side-w: var(--side-w-open); }
 body.side-collapsed.side-peek .side-full { display: flex; }
 body.side-collapsed.side-peek .side-rail { display: none; }

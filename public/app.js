@@ -321,7 +321,7 @@ function renderAnytimeBand() {
     cell.dataset.zone = 'untimed';
 
     const untimed = tasks
-      .filter(t => t.day === key && !t.done && !Number(t.hours))
+      .filter(t => t.day === key && !t.done && t.anytime)
       .sort((a, b) => a.position - b.position);
     count += untimed.length;
     untimed.forEach(t => cell.appendChild(blockEl(t, 'todo', { chip: true })));
@@ -361,9 +361,10 @@ function buildCol(dayKey, zone) {
     : tasks.filter(t => t.day === dayKey && t.done).sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
 
   if (zone === 'todo') {
-    /* Only estimated work belongs on the time axis — the rest lives in the
-       Anytime band across the top (see renderAnytimeBand). */
-    const timed = list.filter(t => Number(t.hours) > 0);
+    /* Anytime is an explicit choice, not "happens to have no estimate" — a
+       to do with no hours still belongs on the time axis unless you said
+       otherwise (see renderAnytimeBand). */
+    const timed = list.filter(t => !t.anytime);
 
     // blocks interleaved with insert points: ins[0] block[0] ins[1] block[1] … ins[n]
     const kids = [];
@@ -472,7 +473,9 @@ function inlineAddEl(day, index) {
     pushUndo('add');
     await api.create({
       title: title || 'Untitled',
-      hours, startTime,
+      hours: hours || 1,           // the pile is the time axis — it needs to occupy space
+      startTime,
+      anytime: false,              // Anytime is opt-in, via the editor or a drag
       color: pickedColor,
       day,
       position: index - 0.5,       // slots between index-1 and index
@@ -1023,7 +1026,6 @@ on('#canvas', 'scroll', closeCtx, { passive: true });
 function onDragStart() {
   dragging = true;
   document.body.classList.add('is-dragging');
-  if (document.body.classList.contains('side-collapsed')) document.body.classList.add('side-peek');
   $$('.col').forEach(c => c.classList.add('drop-hint'));
 }
 
@@ -1050,14 +1052,14 @@ async function onDragEnd(evt) {
     await api.update(id, { done: true, day: destDay });
 
   } else if (destZone === 'untimed') {
-    // the tray is the no-duration lane, so landing there drops the estimate
+    // the band is the no-duration lane, so landing there drops the estimate
     const hadHours = Number(moved?.hours) > 0;
-    await api.update(id, { done: false, day: destDay, hours: 0 });
+    await api.update(id, { done: false, day: destDay, hours: 0, anytime: true, startTime: null });
     if (hadHours) note = 'Estimate cleared — it sits in Anytime now';
 
   } else if (destZone === 'todo') {
     // the pile is the time axis, so it needs some duration to occupy space
-    const patch = { done: false, day: destDay };
+    const patch = { done: false, day: destDay, anytime: false };
     if (!Number(moved?.hours)) { patch.hours = 1; note = 'Given a 1h estimate — drag its top edge to adjust'; }
     await api.update(id, patch);
 
@@ -1095,7 +1097,7 @@ async function toggleDone(t) {
 }
 
 async function newTask(day = null) {
-  const t = await api.create({ title: '', day, color: pickedColor, hours: day ? 1 : 0 });
+  const t = await api.create({ title: '', day, color: pickedColor, hours: day ? 1 : 0, anytime: false });
   tasks.push(t);
   render();
   openEdit(t, true);
@@ -1142,6 +1144,7 @@ function openEdit(t, isNew = false) {
   $('#mDay').value    = t.day || '';
   $('#mDone').checked = !!t.done;
   $('#mHideNotes').checked = !!t.hideNotes;
+  $('#mAnytime').checked = !!t.anytime;
   syncDuration(Number(t.hours) || 0);
   syncStart(t.startTime || '');
   syncDatePill();
@@ -1175,6 +1178,9 @@ function openEdit(t, isNew = false) {
   $('#tdMenuPop').hidden = true;
   $('#taskModal').dataset.new = isNew ? '1' : '';
 
+  const tf = $('#tdTimeField');
+  if (isNew && !t.startTime) { tf.classList.add('needs-time'); } else { tf.classList.remove('needs-time'); }
+
   pickedColor = COLOR[t.color] ? t.color : 'navy';
   $$('#mColorPicker .swatch').forEach(s => s.classList.toggle('selected', s.dataset.color === pickedColor));
 
@@ -1202,11 +1208,14 @@ async function saveEdit(opts = {}) {
   const until = $('#mUntil').value;
   const day   = $('#mDay').value || null;
   const done  = opts.markDone ? true : $('#mDone').checked;
+  const anytime = $('#mAnytime').checked;
   const patch = {
     title: $('#mTitle').value.trim() || 'Untitled',
     notes: $('#mNotes').value,
-    hours: parseDuration($('#mHours').value),
-    startTime: $('#mStart').value || null,
+    // a timed block has to occupy space on the axis; an Anytime chip must not
+    hours: anytime ? 0 : (parseDuration($('#mHours').value) || 1),
+    anytime,
+    startTime: anytime ? null : ($('#mStart').value || null),
     color: pickedColor,
     day:   done && !day ? selectedDay : day,   // a completed to do needs a day to land on
     done,
@@ -1819,6 +1828,29 @@ function setSidebar(collapsed) {
 on('#sideCollapse', 'click', () => setSidebar(true));
 on('#sideExpand',   'click', () => setSidebar(false));
 
+/* Peek the collapsed panel open on deliberate approach — hover, or a drag
+   held over the spine — and close it again on the way out. */
+(() => {
+  const spine = $('#sideExpand');
+  const side  = spine?.closest('.sidebar') || spine?.parentElement;
+  if (!spine || !side) return;
+  let hold;
+  const peek = () => {
+    clearTimeout(hold);
+    if (document.body.classList.contains('side-collapsed')) document.body.classList.add('side-peek');
+  };
+  const unpeek = () => {
+    clearTimeout(hold);
+    hold = setTimeout(() => {
+      if (!dragging && !side.matches(':hover')) document.body.classList.remove('side-peek');
+    }, 220);
+  };
+  spine.addEventListener('mouseenter', peek);
+  spine.addEventListener('dragover', peek);
+  spine.addEventListener('pointerenter', () => { if (dragging) peek(); });
+  side.addEventListener('mouseleave', unpeek);
+})();
+
 /* ── bulk manager ──────────────────────────────────────────── */
 on('#manageBtn', 'click', openManage);
 on('#mgClose', 'click', () => $('#manageModal').hidden = true);
@@ -1942,9 +1974,17 @@ on('#mHours', 'blur', () => {
 
 $$('.td-pill[data-t]').forEach(p => p.addEventListener('click', () => {
   syncStart($('#mStart').value === p.dataset.t ? '' : p.dataset.t);
+  if ($('#mStart').value) $('#mAnytime').checked = false;
 }));
 on('#mClearStart', 'click', () => syncStart(''));
 on('#mStart', 'change', () => syncStart($('#mStart').value));
+
+/* Anytime and a start time are mutually exclusive — picking one clears the
+   other rather than leaving the card in a state the board can't render. */
+on('#mAnytime', 'change', () => {
+  if ($('#mAnytime').checked) { syncStart(''); syncDuration(0); }
+  else if (!parseDuration($('#mHours').value)) syncDuration(1);
+});
 
 on('#tdHelp', 'click', () => { $('#helpModal').hidden = false; });
 

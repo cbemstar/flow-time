@@ -56,10 +56,22 @@ function readDBFile(file) {
   return { ...EMPTY_DB(), ...parsed };
 }
 
+/* Anytime used to be inferred from "hours === 0", which meant a to do with no
+   estimate silently fell out of the timed pile. It is an explicit choice now,
+   so existing tasks need the flag stamped on to keep them where they sit. */
+function migrate(db) {
+  if (db.schemaVersion >= 2) return db;
+  for (const t of db.tasks) {
+    if (typeof t.anytime !== 'boolean') t.anytime = !Number(t.hours);
+  }
+  db.schemaVersion = 2;
+  return db;
+}
+
 function loadDB() {
-  if (!fs.existsSync(DB_FILE)) return EMPTY_DB();
+  if (!fs.existsSync(DB_FILE)) return migrate(EMPTY_DB());
   try {
-    return readDBFile(DB_FILE);
+    return migrate(readDBFile(DB_FILE));
   } catch (err) {
     /* Never fall through to an empty DB here. Returning {} on a bad read is
        what silently destroyed the file: the next save wrote the emptiness
@@ -71,7 +83,7 @@ function loadDB() {
         const recovered = readDBFile(BAK_FILE);
         console.error(`  db.json unreadable (${err.message}).`);
         console.error(`  Bad copy kept at ${path.basename(bad)}; recovered ${recovered.tasks.length} tasks from db.bak.json`);
-        return recovered;
+        return migrate(recovered);
       } catch {}
     }
     throw Object.assign(
@@ -154,6 +166,7 @@ app.post('/api/tasks', (req, res) => {
     title: 'Untitled',
     notes: '',
     hours: 0,
+    anytime: false,
     color: 'blue',
     day: null,
     position: db.tasks.filter(t => (t.day ?? null) === (req.body.day ?? null) && !t.done).length,
