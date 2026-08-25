@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow — To Do</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F7D046'/%3E%3Cpath d='M8 11h16M8 16h16M8 21h16' stroke='%231A1A1A' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- Left icon rail -->
+  <nav class="rail">
+    <div class="rail-group">
+      <button class="rail-btn" id="railSearch" title="Search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>
+      </button>
+      <button class="rail-btn" id="railActivity" title="Activity" aria-expanded="false">
+        <svg viewBox="0 0 24 24"><polygon points="13 2 4 14 11 14 10 22 20 10 13 10 13 2"/></svg>
+      </button>
+    </div>
+    <div class="rail-group">
+      <button class="rail-btn active" title="To Do" aria-current="page">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+      </button>
+    </div>
+    <div class="rail-group rail-bottom">
+      <button class="rail-btn" id="railSettings" title="Calendar sync">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+      <button class="rail-btn" id="railHelp" title="Shortcuts">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+      <div class="rail-avatar">K</div>
+    </div>
+  </nav>
+
+  <!-- Activity panel -->
+  <aside class="activity" id="activityPanel" hidden aria-label="Activity">
+    <header class="act-head">
+      <h2>Activity</h2>
+      <button class="act-collapse" id="actClose" type="button" title="Collapse" aria-label="Collapse">
+        <svg viewBox="0 0 24 24"><polyline points="13 6 7 12 13 18"/><polyline points="19 6 13 12 19 18"/></svg>
+      </button>
+    </header>
+
+    <nav class="act-tabs" role="tablist">
+      <button class="act-tab is-on" data-tab="starred" role="tab" type="button" title="Starred" aria-selected="true">
+        <svg viewBox="0 0 24 24"><polygon points="12 3 14.6 8.6 20.8 9.4 16.2 13.7 17.4 19.8 12 16.8 6.6 19.8 7.8 13.7 3.2 9.4 9.4 8.6"/></svg>
+      </button>
+      <button class="act-tab" data-tab="log" role="tab" type="button" title="History" aria-selected="false">
+        <svg viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><polyline points="3.2 4.4 3.2 9.2 8 9.2"/><polyline points="12 7.6 12 12 15 13.8"/></svg>
+      </button>
+      <button class="act-tab" data-tab="alerts" role="tab" type="button" title="Needs attention" aria-selected="false">
+        <svg viewBox="0 0 24 24"><path d="M20.5 14.4a2 2 0 0 1-2 2H7.6L3.5 20.5V5.6a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>
+        <span class="act-dot" id="actDot" hidden></span>
+      </button>
+    </nav>
+
+    <div class="act-body" id="actBody" role="tabpanel"></div>
+    <footer class="act-foot" id="actFoot"></footer>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="nav">
+        <button id="prevWeek" class="icon-btn" title="Previous week (⌥←)">
+          <svg viewBox="0 0 24 24"><polyline points="15 5 8 12 15 19"/></svg>
+        </button>
+        <button id="nextWeek" class="icon-btn" title="Next week (⌥→)">
+          <svg viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19"/></svg>
+        </button>
+        <button id="thisWeek" class="btn-ghost">Today</button>
+        <span class="week-label" id="weekLabel"></span>
+      </div>
+      <div class="actions">
+        <button class="overdue" id="overduePill" type="button" hidden></button>
+        <div class="week-total" id="weekTotal"></div>
+        <label class="toggle" title="Fill blocks with their tag colour">
+          <input type="checkbox" id="colourMode">
+          <span>Colour</span>
+        </label>
+        <label class="toggle" title="Show Sat & Sun">
+          <input type="checkbox" id="showWeekend">
+          <span>Weekend</span>
+        </label>
+        <button id="manageBtn" class="btn-ghost" title="Find and edit many to dos at once">
+          <svg class="ico" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="14" y2="17"/><circle cx="18.5" cy="17" r="2.2"/></svg>
+          Manage
+        </button>
+        <button id="settingsBtn" class="btn-ghost">
+          <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Sync
+        </button>
+        <div class="split">
+          <button id="newTaskBtn" class="btn-primary">New task</button>
+          <button id="addNewBtn" class="btn-primary split-caret" type="button"
+                  title="Add from a saved template" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24"><polyline points="6 9.5 12 15.5 18 9.5"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="addnew" id="addNewMenu" hidden>
+      <div class="addnew-head">Add New</div>
+      <div class="addnew-list" id="addNewList"></div>
+    </div>
+
+    <div class="board">
+      <div class="canvas" id="canvas">
+
+        <section class="zone zone-todo">
+          <div class="watermark wm-todo" aria-hidden="true">To Do</div>
+          <div class="todo-inner">
+            <div class="anytime-wrap is-empty" id="anytimeWrap">
+              <div class="anytime-cap">Anytime</div>
+              <div class="anytime-band" id="anytimeBand"></div>
+            </div>
+            <div class="cols" id="todoCols"></div>
+          </div>
+        </section>
+
+        <div class="strip" id="dayStrip"></div>
+
+        <button class="done-toggle" id="doneToggle" type="button"
+                title="Collapse Done" aria-expanded="true" aria-label="Collapse Done">
+          <svg viewBox="0 0 24 24"><polyline points="6 9.5 12 15.5 18 9.5"/></svg>
+        </button>
+
+        <section class="zone zone-done">
+          <div class="watermark wm-done" aria-hidden="true">Done</div>
+          <div class="cols" id="doneCols"></div>
+        </section>
+
+      </div>
+
+      <aside class="sidebar">
+        <div class="side-full">
+          <div class="sidebar-head">
+            <svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>
+            <input id="itemSearch" class="sidebar-search" placeholder="My items" autocomplete="off">
+            <span class="pill" id="backlogCount">0</span>
+            <button class="side-toggle" id="sideCollapse" type="button" title="Collapse My items" aria-label="Collapse My items">
+              <svg viewBox="0 0 24 24"><polyline points="11 6 17 12 11 18"/><polyline points="5 6 11 12 5 18"/></svg>
+            </button>
+          </div>
+          <div class="items" id="col-backlog" data-zone="backlog"></div>
+          <button class="add-item" id="addBacklog">
+            <span class="plus">+</span> New item
+          </button>
+        </div>
+
+        <button class="side-rail" id="sideExpand" type="button" title="Show My items" aria-label="Show My items">
+          <svg viewBox="0 0 24 24"><polyline points="13 6 7 12 13 18"/><polyline points="19 6 13 12 19 18"/></svg>
+          <span class="side-vert">My items</span>
+          <span class="pill" id="backlogCountMini">0</span>
+        </button>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- Task modal — Streamtime "Edit Personal To Do" card -->
+<div class="modal" id="taskModal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="td-card" role="dialog" aria-modal="true" aria-labelledby="tdHeading">
+
+    <header class="td-head">
+      <label class="td-flag" title="Mark this to do complete">
+        <input type="checkbox" id="mDone">
+        <span class="td-box" aria-hidden="true">
+          <svg viewBox="0 0 14 14"><polyline points="2.6 7.2 5.6 10 11.2 4.2"/></svg>
+        </span>
+        <span class="td-flag-text">Done</span>
+      </label>
+
+      <h2 class="td-heading" id="tdHeading">
+        <span id="tdHeadingText">Edit To Do</span>
+      </h2>
+
+      <div class="td-head-tools">
+        <button class="td-tool" id="tdHelp" type="button" title="Shortcuts" aria-label="Shortcuts">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2"/><path d="M9.2 9.1a3 3 0 0 1 5.8 1c0 2-3 2.7-3 2.7"/><line x1="12" y1="17.1" x2="12.01" y2="17.1"/></svg>
+        </button>
+        <div class="td-menu-wrap">
+          <button class="td-tool" id="tdMenu" type="button" title="More" aria-label="More actions" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="5.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="18.6" r="1.5" fill="currentColor" stroke="none"/></svg>
+          </button>
+          <div class="td-menu" id="tdMenuPop" hidden>
+            <button type="button" data-act="duplicate">Duplicate</button>
+            <button type="button" data-act="unschedule">Move to My items</button>
+            <button type="button" data-act="clear">Clear duration</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="td-body">
+
+      <div class="td-meta">
+        <span class="td-date" id="tdDate">
+          <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><line x1="3.5" y1="9.6" x2="20.5" y2="9.6"/><line x1="8.4" y1="2.8" x2="8.4" y2="6.4"/><line x1="15.6" y1="2.8" x2="15.6" y2="6.4"/></svg>
+          <span id="tdDateLabel">Unscheduled</span>
+          <input type="date" id="mDay" aria-label="Day">
+        </span>
+        <span class="td-avatar" id="tdAvatar">KK</span>
+        <span class="td-user" id="tdUser">karan</span>
+      </div>
+
+      <div class="td-series" id="tdSeries" hidden>
+        <svg viewBox="0 0 24 24"><polyline points="16.5 2.6 20.6 6.7 16.5 10.8"/><path d="M3.4 12.6v-1.9a4 4 0 0 1 4-4h13.2"/><polyline points="7.5 21.4 3.4 17.3 7.5 13.2"/><path d="M20.6 11.4v1.9a4 4 0 0 1-4 4H3.4"/></svg>
+        <span id="tdSeriesText"></span>
+        <button type="button" id="tdSeriesGo" hidden>Edit the series</button>
+      </div>
+
+      <div class="td-field">
+        <div class="td-label">What's the to do?</div>
+        <input id="mTitle" class="td-input" placeholder="Name this to do…" autocomplete="off">
+      </div>
+
+      <div class="td-field">
+        <div class="td-label">Description</div>
+        <textarea id="mNotes" class="td-textarea" placeholder="Describe what you're doing…"></textarea>
+      </div>
+
+      <label class="td-check">
+        <input type="checkbox" id="mHideNotes">
+        <span class="td-box sm" aria-hidden="true">
+          <svg viewBox="0 0 14 14"><polyline points="2.6 7.2 5.6 10 11.2 4.2"/></svg>
+        </span>
+        <span>Hide description on the block</span>
+      </label>
+
+      <div class="td-field">
+        <div class="td-label">Start time</div>
+        <div class="td-duration">
+          <input type="time" id="mStart" class="td-dur td-dur-time" step="900" aria-label="Start time">
+          <button class="td-pill" type="button" data-t="09:00">9:00am</button>
+          <button class="td-pill" type="button" data-t="10:00">10:00am</button>
+          <button class="td-pill" type="button" data-t="13:00">1:00pm</button>
+          <button class="td-pill td-pill-quiet" type="button" id="mClearStart">No time</button>
+        </div>
+      </div>
+
+      <div class="td-field">
+        <div class="td-label">Duration</div>
+        <div class="td-duration">
+          <input id="mHours" class="td-dur" placeholder="0m" autocomplete="off" aria-label="Duration">
+          <button class="td-pill" type="button" data-h="0.25">15m</button>
+          <button class="td-pill" type="button" data-h="0.5">30m</button>
+          <button class="td-pill" type="button" data-h="1">1h</button>
+          <button class="td-pill" type="button" data-h="2">2h</button>
+          <button class="td-pill" type="button" data-h="4">4h</button>
+        </div>
+      </div>
+
+      <div class="td-field">
+        <div class="td-label">Colour</div>
+        <div class="color-picker" id="mColorPicker"></div>
+      </div>
+
+      <div class="td-field">
+        <div class="td-label">Repeat</div>
+        <div class="td-repeat">
+          <select id="mRecurring" class="td-select">
+            <option value="">Never</option>
+            <option value="daily">Every day</option>
+            <option value="weekdays">Weekdays</option>
+            <option value="weekly">Every week</option>
+            <option value="biweekly">Every 2 weeks</option>
+            <option value="monthly">Every month</option>
+          </select>
+          <span class="td-until" id="mUntilWrap">
+            <label for="mUntil">until</label>
+            <input type="date" id="mUntil" class="td-select">
+          </span>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="td-foot">
+      <button class="td-link" id="mCancel" type="button">Cancel</button>
+      <button class="td-link td-link-del" id="mDelete" type="button">
+        <svg viewBox="0 0 24 24"><polyline points="3.5 6.4 20.5 6.4"/><path d="M8.6 6.4V4.6a1.6 1.6 0 0 1 1.6-1.6h3.6a1.6 1.6 0 0 1 1.6 1.6v1.8"/><path d="M18.4 6.4v13.2a1.8 1.8 0 0 1-1.8 1.8H7.4a1.8 1.8 0 0 1-1.8-1.8V6.4"/></svg>
+        <span>Delete</span>
+      </button>
+      <div class="spacer"></div>
+      <button class="td-btn" id="mLog" type="button" title="Mark done and save">
+        <kbd>⇧⌘↵</kbd> Log
+      </button>
+      <button class="td-btn td-btn-dark" id="mSave" type="button">
+        <kbd>⌘↵</kbd> Save
+      </button>
+    </footer>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal" id="settingsModal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card wide">
+    <h2>Settings</h2>
+
+    <section class="setting">
+      <h3>Your day</h3>
+      <p>Capacity drives the load bar on each day tab — over it, the tab turns amber.</p>
+      <div class="setting-row">
+        <label>
+          <span>Hours per day</span>
+          <input type="number" id="setCapacity" min="1" max="24" step="0.5">
+        </label>
+        <label>
+          <span>Default start</span>
+          <input type="time" id="setDayStart" step="900">
+        </label>
+        <label>
+          <span>Block height</span>
+          <select id="setScale">
+            <option value="26">Compact — 26px per hour</option>
+            <option value="34">Normal — 34px per hour</option>
+            <option value="50">Roomy — 50px per hour</option>
+            <option value="64">Extra roomy — 64px per hour</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">Block height is the estimate, so a short task is a short block.
+         Go roomier if you want descriptions to show on shorter to dos.</p>
+    </section>
+
+    <section class="setting">
+      <h3>Backup</h3>
+      <p>Everything lives in <code>data/db.json</code>. Take a copy before anything risky —
+         the server also keeps a rolling <code>db.bak.json</code>.</p>
+      <div class="gcal-btns">
+        <a href="/api/backup" class="btn-ghost" download>Download backup</a>
+        <button class="btn-ghost" id="restoreBtn" type="button">Restore from file…</button>
+        <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+      </div>
+    </section>
+
+    <section class="setting">
+      <h3>Subscribe (one-way, live)</h3>
+      <p>Add this URL in Apple Calendar → File → New Calendar Subscription. It polls and updates automatically.</p>
+      <div class="ics-row">
+        <code id="icsUrl"></code>
+        <button id="copyIcs" class="btn-ghost">Copy</button>
+        <a id="downloadIcs" href="/calendar.ics" download="flow.ics" class="btn-ghost">Download .ics</a>
+      </div>
+      <p class="hint">Google Calendar can't subscribe to <code>localhost</code>. Use two-way sync below, or expose the port with ngrok/cloudflared.</p>
+    </section>
+
+    <section class="setting">
+      <h3>Google Calendar (two-way)</h3>
+      <div id="gcalState">
+        <p id="gcalStatus">Checking…</p>
+        <div class="gcal-btns">
+          <a href="/oauth/google" id="gcalConnect" class="btn-primary" hidden>Connect Google</a>
+          <button id="gcalPush" class="btn-primary" type="button" hidden>Push tasks → Calendar</button>
+          <button id="gcalPull" class="btn-ghost" type="button" hidden>Pull from Calendar</button>
+          <button id="gcalDisconnect" class="btn-danger" type="button" hidden>Disconnect</button>
+        </div>
+      </div>
+      <details>
+        <summary>First-time setup</summary>
+        <ol>
+          <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> and create a project.</li>
+          <li>APIs &amp; Services → Library → enable <b>Google Calendar API</b>.</li>
+          <li>OAuth consent screen → External → add yourself as a test user.</li>
+          <li>Credentials → Create OAuth client ID → <b>Web application</b>.</li>
+          <li>Authorised redirect URI: <code>http://localhost:3000/oauth/google/callback</code></li>
+          <li>Paste the client ID + secret into <code>.env</code> in the project root.</li>
+          <li>Restart the server, then hit <b>Connect Google</b>.</li>
+        </ol>
+      </details>
+    </section>
+
+    <div class="modal-actions">
+      <div class="spacer"></div>
+      <button id="sClose" class="btn-primary" type="button">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shortcuts -->
+<div class="modal" id="helpModal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card">
+    <h2>Shortcuts</h2>
+    <ul class="keys">
+      <li><kbd>⌘</kbd><kbd>K</kbd><span>Search every to do</span></li>
+      <li><kbd>⌘</kbd><kbd>Z</kbd><span>Undo</span></li>
+      <li><kbd>⇧</kbd><kbd>⌘</kbd><kbd>Z</kbd><span>Redo</span></li>
+      <li><kbd>⌘</kbd><kbd>N</kbd><span>New task on selected day</span></li>
+      <li><kbd>⌘</kbd><kbd>⏎</kbd><span>Save task</span></li>
+      <li><kbd>⇧</kbd><kbd>⌘</kbd><kbd>⏎</kbd><span>Log — mark done and save</span></li>
+      <li><kbd>Esc</kbd><span>Close</span></li>
+      <li><kbd>⌥</kbd><kbd>←</kbd> / <kbd>⌥</kbd><kbd>→</kbd><span>Previous / next week</span></li>
+      <li><kbd>⌥</kbd><kbd>T</kbd><span>Jump to today</span></li>
+      <li><kbd>⌘</kbd><kbd>A</kbd><span>Select all visible blocks</span></li>
+      <li><kbd>⌫</kbd><span>Delete the selection</span></li>
+      <li><kbd>Tab</kbd><span>Move between blocks — then <kbd>⏎</kbd> edit, <kbd>D</kbd> done, <kbd>⌫</kbd> delete</span></li>
+      <li><span class="k-note">Drag the top edge of a To&nbsp;Do block (or the bottom edge of a Done block) to change its hours. Right-click any block for the full menu. Drag on empty canvas to rubber-band select several, then right-click to act on all of them.</span></li>
+    </ul>
+    <div class="modal-actions"><div class="spacer"></div><button class="btn-primary" data-close type="button">Got it</button></div>
+  </div>
+</div>
+
+<!-- Bulk manager -->
+<div class="modal" id="manageModal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="mg-card" role="dialog" aria-modal="true" aria-labelledby="mgTitle">
+
+    <header class="mg-head">
+      <h2 id="mgTitle">Manage to dos</h2>
+      <button class="td-tool" id="mgClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </header>
+
+    <div class="mg-filters">
+      <input id="mgSearch" class="mg-input mg-grow" placeholder="Search title or description…" autocomplete="off" spellcheck="false">
+      <label class="mg-field"><span>From</span><input type="date" id="mgFrom" class="mg-input"></label>
+      <label class="mg-field"><span>To</span><input type="date" id="mgTo" class="mg-input"></label>
+      <label class="mg-field"><span>Status</span>
+        <select id="mgStatus" class="mg-input">
+          <option value="open">Open</option>
+          <option value="done">Done</option>
+          <option value="all">All</option>
+        </select>
+      </label>
+      <label class="mg-field"><span>Kind</span>
+        <select id="mgKind" class="mg-input">
+          <option value="all">Everything</option>
+          <option value="repeat">Repeating series</option>
+          <option value="instance">Series occurrences</option>
+          <option value="single">One-off only</option>
+          <option value="noduration">No duration</option>
+          <option value="unscheduled">My items</option>
+          <option value="orphan">Orphaned occurrences</option>
+        </select>
+      </label>
+      <button class="btn-ghost" id="mgReset" type="button">Reset</button>
+    </div>
+
+    <div class="mg-listhead">
+      <label class="mg-check">
+        <input type="checkbox" id="mgAll">
+        <span class="td-box sm" aria-hidden="true"><svg viewBox="0 0 14 14"><polyline points="2.6 7.2 5.6 10 11.2 4.2"/></svg></span>
+      </label>
+      <span class="mg-col-title">To do</span>
+      <span class="mg-col-day">Day</span>
+      <span class="mg-col-dur">Duration</span>
+    </div>
+
+    <div class="mg-list" id="mgList"></div>
+
+    <footer class="mg-foot">
+      <span class="mg-count" id="mgCount">Nothing selected</span>
+      <div class="mg-actions" id="mgActions">
+        <button class="btn-ghost" data-bulk="move" type="button">Move to date…</button>
+        <button class="btn-ghost" data-bulk="shift" type="button">Shift by days…</button>
+        <button class="btn-ghost" data-bulk="hours" type="button">Set duration…</button>
+        <button class="btn-ghost" data-bulk="unschedule" type="button">To My items</button>
+        <button class="btn-ghost" data-bulk="done" type="button">Mark done</button>
+        <button class="btn-ghost" data-bulk="open" type="button">Reopen</button>
+        <button class="btn-danger" data-bulk="delete" type="button">Delete</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- Global search -->
+<div class="modal" id="searchModal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="search-card">
+    <div class="search-top">
+      <svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchInput" placeholder="Search every to do…" autocomplete="off" spellcheck="false">
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</div>
+
+<!-- Right-click context menu -->
+<div class="ctx" id="ctxMenu" hidden role="menu">
+  <button type="button" data-act="duplicate" role="menuitem">
+    <svg viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 5.5v-.6a1.4 1.4 0 0 0-1.4-1.4H4.9a1.4 1.4 0 0 0-1.4 1.4v9.2a1.4 1.4 0 0 0 1.4 1.4h.6"/></svg>
+    <span>Duplicate</span>
+  </button>
+
+  <div class="ctx-sub-wrap">
+    <button type="button" data-act="move" role="menuitem" aria-haspopup="true">
+      <svg viewBox="0 0 24 24"><polyline points="15.5 4.5 19.5 8.5 15.5 12.5"/><line x1="19.5" y1="8.5" x2="4.5" y2="8.5"/><polyline points="8.5 11.5 4.5 15.5 8.5 19.5"/><line x1="4.5" y1="15.5" x2="19.5" y2="15.5"/></svg>
+      <span>Move to</span>
+      <svg class="ctx-chev" viewBox="0 0 24 24"><polyline points="9.5 5 16.5 12 9.5 19"/></svg>
+    </button>
+    <div class="ctx-sub" id="ctxMoveSub"></div>
+  </div>
+
+  <button type="button" data-act="log" role="menuitem">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><polyline points="8.6 10.6 12 14 15.4 10.6"/></svg>
+    <span id="ctxLogLabel">Log</span>
+  </button>
+
+  <div class="ctx-sub-wrap">
+    <button type="button" data-act="delete" role="menuitem" aria-haspopup="true">
+      <svg viewBox="0 0 24 24"><polyline points="3.6 6.4 20.4 6.4"/><path d="M8.6 6.4V4.6a1.6 1.6 0 0 1 1.6-1.6h3.6a1.6 1.6 0 0 1 1.6 1.6v1.8"/><path d="M18.4 6.4v13.2a1.8 1.8 0 0 1-1.8 1.8H7.4a1.8 1.8 0 0 1-1.8-1.8V6.4"/></svg>
+      <span>Delete</span>
+      <svg class="ctx-chev" viewBox="0 0 24 24"><polyline points="9.5 5 16.5 12 9.5 19"/></svg>
+    </button>
+    <div class="ctx-sub" id="ctxDelSub"></div>
+  </div>
+
+  <button type="button" data-act="star" role="menuitem">
+    <svg viewBox="0 0 24 24"><polygon points="12 3 14.6 8.6 20.8 9.4 16.2 13.7 17.4 19.8 12 16.8 6.6 19.8 7.8 13.7 3.2 9.4 9.4 8.6"/></svg>
+    <span id="ctxStarLabel">Star</span>
+  </button>
+
+  <button type="button" data-act="template" role="menuitem">
+    <svg viewBox="0 0 24 24"><path d="M12 3.2l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.6l6.1-.8z"/></svg>
+    <span>Save as template</span>
+  </button>
+
+  <div class="ctx-sep"></div>
+
+  <button type="button" data-act="start" role="menuitem">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.6"/><line x1="12" y1="13" x2="12" y2="9.4"/><line x1="9.6" y1="2.8" x2="14.4" y2="2.8"/></svg>
+    <span>Start now</span>
+  </button>
+</div>
+
+<div class="pickbar" id="pickBar" hidden>
+  <span id="pickCount">0 selected</span>
+  <button type="button" id="pickClear">Clear</button>
+  <span class="pickbar-hint">right-click for actions</span>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<div id="resizeBadge" class="resize-badge" hidden></div>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>
