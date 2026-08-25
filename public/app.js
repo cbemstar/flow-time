@@ -2,6 +2,8 @@
    Flow — Streamtime-style To Do / Done
    ============================================================ */
 
+import { stagger, collapse } from '/anim.js';
+
 let   PX_HOUR   = 34;    // pixels per hour — set from settings.pxPerHour
 const MIN_H     = 26;    // smallest block in px
 const NO_EST_H  = 40;    // height for a block with no estimate
@@ -284,6 +286,8 @@ function renderOverdue() {
   };
 }
 
+let lastZoneKey = '';
+
 function renderZones() {
   sortables.forEach(s => { try { s.destroy(); } catch {} });
   sortables.length = 0;
@@ -298,6 +302,17 @@ function renderZones() {
   for (const key of visibleDays()) {
     todo.appendChild(buildCol(key, 'todo'));
     done.appendChild(buildCol(key, 'done'));
+  }
+
+  // Stagger the blocks in, but only when the board actually changed shape.
+  // renderZones() also runs on every refresh, and re-animating settled
+  // blocks on each save reads as a flicker rather than as motion.
+  const shape = visibleDays().join() + '|' + weekStart + '|' +
+    tasks.filter(t => !t.done).length + '|' + tasks.length;
+  if (shape !== lastZoneKey) {
+    lastZoneKey = shape;
+    stagger($$('#todoCols .block, #anytimeBand .block'));
+    stagger($$('#doneCols .block'), { y: -6 });
   }
 
   // sidebar sortable is registered in renderSidebar()
@@ -1334,6 +1349,7 @@ function renderActivity() {
   if (actTab === 'starred')      renderStarredTab(body);
   else if (actTab === 'log')     renderLogTab(body);
   else                           renderAlertsTab(body);
+  stagger(body.children, { y: 8, delay: 0.016 });
 
   renderActFooter();
   updateAlertDot();
@@ -1650,6 +1666,7 @@ function renderSearch(q) {
     row.addEventListener('click', () => jumpToTask(t));
     res.appendChild(row);
   });
+  stagger(res.children, { y: 6, delay: 0.01 });
 }
 
 /* ============================================================
@@ -1712,6 +1729,7 @@ function renderManage() {
     list.innerHTML = `<div class="mg-empty">Nothing matches those filters.<br>Try widening the date range or switching Status to <b>All</b>.</div>`;
   } else {
     for (const t of mgRows) list.appendChild(mgRow(t));
+    stagger(list.children, { y: 6, delay: 0.008 });
   }
   syncMgFooter();
 }
@@ -2032,7 +2050,16 @@ document.addEventListener('click', (e) => {
 
 /* ── collapse Done ─────────────────────────────────────────── */
 on('#doneToggle', 'click', () => {
-  const collapsed = document.body.classList.toggle('done-collapsed');
+  const zone = $('.zone-done');
+  const collapsed = !document.body.classList.contains('done-collapsed');
+  // Measure while the zone is still laid out, then let the class land at the
+  // end of the animation so `display: none` never truncates it mid-flight.
+  if (collapsed) {
+    collapse(zone, false).then(() => document.body.classList.add('done-collapsed'));
+  } else {
+    document.body.classList.remove('done-collapsed');
+    collapse(zone, true);
+  }
   $('#doneToggle').setAttribute('aria-expanded', String(!collapsed));
   $('#doneToggle').title = collapsed ? 'Show Done' : 'Collapse Done';
   localStorage.setItem('flow.doneCollapsed', collapsed ? '1' : '0');

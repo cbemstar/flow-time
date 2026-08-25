@@ -838,7 +838,6 @@ body.colour-blocks .block.is-picked {
   box-shadow: var(--shadow-md);
   font-size: var(--fs-base);
   font-weight: 500;
-  animation: pop .16s ease;
 }
 .pickbar[hidden] { display: none; }
 .pickbar button {
@@ -1876,10 +1875,8 @@ kbd {
   font-size: 12.5px; font-weight: 500;
   box-shadow: var(--shadow-md);
   z-index: 300;
-  animation: pop .18s ease;
 }
 .toast[hidden] { display: none; }
-@keyframes pop { from { transform: translate(-50%, 8px); opacity: 0 } to { transform: translate(-50%, 0); opacity: 1 } }
 
 /* ============================================================
    RESPONSIVE
