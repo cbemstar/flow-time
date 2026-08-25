@@ -407,6 +407,7 @@ body.is-resizing * { cursor: ns-resize !important; user-select: none !important;
   display: grid;
   grid-template-columns: 1fr var(--side-w);
   min-height: 0;
+  position: relative;   /* anchors the peeking sidebar overlay */
 }
 
 .canvas {
@@ -1041,9 +1042,25 @@ body.side-collapsed .side-rail:hover { background: var(--panel-soft); color: var
 /* Peek open only when you actually go to the spine — hovering it, or dragging
    onto it. Opening on every drag made the board jump for moves that were
    never headed here. */
-body.side-collapsed.side-peek { --side-w: var(--side-w-open); }
+/* Peeking floats over the canvas rather than widening the grid column —
+   re-laying out the whole board mid-drag moved the very blocks being aimed at. */
+body.side-collapsed.side-peek .sidebar {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: var(--side-w-open);
+  z-index: 30;
+  box-shadow: -12px 0 26px rgba(20, 19, 17, .14);
+  animation: side-peek-in .16s cubic-bezier(.22, .61, .36, 1);
+}
 body.side-collapsed.side-peek .side-full { display: flex; }
 body.side-collapsed.side-peek .side-rail { display: none; }
+@keyframes side-peek-in {
+  from { transform: translateX(calc(var(--side-w-open) - 38px)); }
+  to   { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.side-collapsed.side-peek .sidebar { animation: none; }
+}
 .sidebar-head {
   display: flex; align-items: center; gap: 8px;
   height: 42px;

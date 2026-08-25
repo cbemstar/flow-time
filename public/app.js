@@ -1178,9 +1178,6 @@ function openEdit(t, isNew = false) {
   $('#tdMenuPop').hidden = true;
   $('#taskModal').dataset.new = isNew ? '1' : '';
 
-  const tf = $('#tdTimeField');
-  if (isNew && !t.startTime) { tf.classList.add('needs-time'); } else { tf.classList.remove('needs-time'); }
-
   pickedColor = COLOR[t.color] ? t.color : 'navy';
   $$('#mColorPicker .swatch').forEach(s => s.classList.toggle('selected', s.dataset.color === pickedColor));
 
