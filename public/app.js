@@ -3,6 +3,7 @@
    ============================================================ */
 
 import { stagger, collapse } from '/anim.js';
+import { confirmInline, closeConfirm } from '/confirm.js';
 
 let   PX_HOUR   = 34;    // pixels per hour — set from settings.pxPerHour
 const MIN_H     = 26;    // smallest block in px
@@ -1246,6 +1247,7 @@ function openEdit(t, isNew = false) {
 }
 
 async function closeEdit() {
+  closeConfirm();          // never strand a bubble over a dismissed card
   const modal = $('#taskModal');
   const wasNew = modal.dataset.new === '1';
   const id = editingId;
@@ -1298,9 +1300,20 @@ async function deleteTask() {
   let cascade = false;
 
   if (!isNew) {
+    const btn = $('#mDelete');
     if (t?.recurring) {
-      cascade = confirm('This is a recurring series.\n\nOK — delete this task and every future occurrence\nCancel — delete only this one');
-    } else if (!confirm('Delete this task?')) {
+      // a series needs three answers, not OK/Cancel — the old confirm()
+      // hid "just this one" behind the Cancel button, which read as "abort"
+      const pick = await confirmInline(btn, {
+        prompt: 'Delete repeating to do?',
+        choices: [
+          { label: 'Just this one',    value: 'one' },
+          { label: 'This and future',  value: 'all', danger: true },
+        ],
+      });
+      if (!pick) return;
+      cascade = pick === 'all';
+    } else if (!await confirmInline(btn, { prompt: 'Delete this to do?' })) {
       return;
     }
   }
@@ -1487,7 +1500,7 @@ function renderLogTab(body) {
   clear.className = 'act-clear';
   clear.textContent = 'Clear history';
   clear.addEventListener('click', async () => {
-    if (!confirm('Clear the activity history? Your to dos are not affected.')) return;
+    if (!await confirmInline(clear, { prompt: 'Clear history?', confirmLabel: 'Clear' })) return;
     await api.clearActivity();
     await loadActivity();
     renderActivity();
@@ -1953,7 +1966,7 @@ $$('#mgActions button').forEach(b => b.addEventListener('click', async () => {
   if (!n) return;
 
   if (kind === 'delete') {
-    if (!confirm(`Delete ${n} to do${n > 1 ? 's' : ''}? You can undo this with ⌘Z.`)) return;
+    if (!await confirmInline(b, { prompt: `Delete ${n} to do${n > 1 ? 's' : ''}?` })) return;
     return mgApply('delete', {}, `delete ${n}`, 'Deleted');
   }
   if (kind === 'unschedule') return mgApply('patch', { day: null }, `move ${n}`, 'Moved');
@@ -2203,7 +2216,7 @@ on('#gcalPull', 'click', async () => {
   await refresh();
 });
 on('#gcalDisconnect', 'click', async () => {
-  if (!confirm('Disconnect Google Calendar?')) return;
+  if (!await confirmInline($('#gcalDisconnect'), { prompt: 'Disconnect Google Calendar?', confirmLabel: 'Disconnect' })) return;
   await api.gcalOff();
   await refreshGcalUI();
 });

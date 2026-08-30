@@ -1895,3 +1895,43 @@ kbd {
   .rail { display: none; }
   .week-total, .toggle { display: none; }
 }
+
+/* ============================================================
+   IN-PLACE CONFIRM
+   Replaces native confirm(): the question is asked beside the
+   control that raised it, in the app's own type and palette.
+   ============================================================ */
+.cf-pop {
+  position: fixed;
+  z-index: 400;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-md);
+  font-size: var(--fs-base);
+  white-space: nowrap;
+}
+.cf-q { font-weight: 500; color: var(--ink); margin-right: 2px; }
+.cf-go {
+  height: 26px; padding: 0 12px;
+  border-radius: var(--r-full);
+  background: var(--sunken);
+  color: var(--ink);
+  font-size: var(--fs-sm); font-weight: 600;
+  transition: background .12s, color .12s;
+}
+.cf-go:hover { background: #E9E4DA; }
+.cf-go.is-danger { background: var(--danger); color: #fff; }
+.cf-go.is-danger:hover { background: #8E3025; }
+.cf-no {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  color: var(--muted);
+  display: grid; place-items: center;
+  transition: background .12s, color .12s;
+}
+.cf-no:hover { background: var(--sunken); color: var(--ink); }
+.cf-no svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.cf-go:focus-visible, .cf-no:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

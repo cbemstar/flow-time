@@ -21,12 +21,32 @@ export const EASE = {
 };
 export const DUR = { xs: 0.12, sm: 0.16, md: 0.22, lg: 0.3 };
 
-/** animate(), but a no-op under reduced motion and safe if Motion is missing */
+/**
+ * animate(), but a no-op under reduced motion and safe if Motion is missing.
+ *
+ * The returned promise is capped by a timer as well as the animation itself.
+ * Motion is driven by requestAnimationFrame, which a browser throttles to a
+ * crawl — or stops entirely — in a hidden or occluded tab. Callers use this
+ * promise to remove nodes and unpin styles, so waiting on the animation alone
+ * would strand a half-closed overlay on screen until the tab came back.
+ */
 export function anim(el, keyframes, opts = {}) {
   if (!el) return Promise.resolve();
   if (!M || reduced()) return Promise.resolve();
-  try { return M.animate(el, keyframes, opts).finished.catch(() => {}); }
+  let playback;
+  try { playback = M.animate(el, keyframes, opts); }
   catch { return Promise.resolve(); }
+
+  const ms = (typeof opts.duration === 'number' ? opts.duration * 1000 : 700)
+           + (typeof opts.delay === 'number' ? opts.delay * 1000 : 0) + 250;
+  return Promise.race([
+    playback.finished.catch(() => {}),
+    new Promise((resolve) => setTimeout(() => {
+      // jump to the end so the element still lands on its final values
+      try { playback.complete?.(); } catch {}
+      resolve();
+    }, ms)),
+  ]);
 }
 
 /* ── overlay choreography ──────────────────────────────────── */
