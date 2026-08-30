@@ -1639,6 +1639,10 @@ body.done-collapsed .zone-done { display: none; }
   border: none; padding: 0;
 }
 .td-date:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* the pill is the only way to reach another week from the editor, so it has
+   to read as a control rather than as a label */
+.td-date-caret { width: 11px; height: 11px; opacity: .55; margin-left: -1px; }
+.td-date:hover .td-date-caret { opacity: .9; }
 
 .td-avatar {
   width: 25px; height: 25px;

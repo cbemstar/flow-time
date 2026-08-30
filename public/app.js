@@ -914,15 +914,58 @@ function buildCtxSubs(task) {
       key === task.day ? 'current' : '',
       () => ctxMoveTo(key)));
   }
-  const sep = document.createElement('div');
-  sep.className = 'ctx-sep';
-  move.appendChild(sep);
+  const sepA = document.createElement('div');
+  sepA.className = 'ctx-sep';
+  move.appendChild(sepA);
+
+  // The submenu used to list this week only, which left no way to move a to do
+  // across a week boundary short of finding the date field in the editor.
+  const anchor = task.day ? parseYMD(task.day) : new Date();
+  move.appendChild(ctxItem('Next week',      'same weekday', () => ctxMoveTo(ymd(addDays(anchor,  7)))));
+  move.appendChild(ctxItem('Last week',      'same weekday', () => ctxMoveTo(ymd(addDays(anchor, -7)))));
+  move.appendChild(ctxItem('Pick a date…',   '',             () => ctxPickDate(task)));
+
+  const sepB = document.createElement('div');
+  sepB.className = 'ctx-sep';
+  move.appendChild(sepB);
   move.appendChild(ctxItem('My items', task.day ? '' : 'current', () => ctxMoveTo(null)));
 
   const del = $('#ctxDelSub');
   del.innerHTML = '';
   del.appendChild(ctxItem('Just this one', '', () => ctxDelete(false)));
   if (task.recurring) del.appendChild(ctxItem('This and all future', '', () => ctxDelete(true)));
+}
+
+/** Native date picker for "Move to → Pick a date…". */
+function ctxPickDate(task) {
+  const targets = ctxTargets();
+  closeCtx();
+  if (!targets.length) return;
+
+  const inp = document.createElement('input');
+  inp.type = 'date';
+  inp.value = task.day || ymd(new Date());
+  // kept in the layout but invisible: a display:none input cannot open a picker
+  inp.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(inp);
+
+  let settled = false;
+  const done = async () => {
+    if (settled) return;
+    settled = true;
+    const day = inp.value || null;
+    inp.remove();
+    if (!day) return;
+    pushUndo(targets.length > 1 ? `move ${targets.length}` : 'move');
+    for (const t of targets) await api.update(t.id, { day });
+    clearPicked();
+    await refresh();
+    revealDay(day);
+    toast(`${targets.length > 1 ? targets.length + ' to dos' : 'Moved'} → ${fmtDatePill(day)}`);
+  };
+  inp.addEventListener('change', done);
+  inp.addEventListener('blur', () => setTimeout(done, 150));
+  if (inp.showPicker) { try { inp.showPicker(); } catch { inp.focus(); } } else inp.focus();
 }
 
 async function ctxMoveTo(day) {
@@ -933,8 +976,10 @@ async function ctxMoveTo(day) {
   for (const t of targets) await api.update(t.id, { day });
   clearPicked();
   await refresh();
+  const jumped = revealDay(day);
   const what = targets.length > 1 ? `${targets.length} to dos` : 'Moved';
-  toast(day ? `${what} → ${fmtDatePill(day)}` : `${what} → My items`);
+  toast(day ? `${what} → ${fmtDatePill(day)}${jumped ? ' · jumped to that week' : ''}`
+            : `${what} → My items`);
 }
 
 async function ctxDelete(cascade) {
@@ -1234,6 +1279,7 @@ async function saveEdit(opts = {}) {
     hideNotes: $('#mHideNotes').checked,
     recurring: freq ? { freq, until: until || null } : null,
   };
+  const movedWeek = patch.day && !visibleDays().includes(patch.day);
   pushUndo('edit');
   const saved = await api.update(editingId, patch);
   const i = tasks.findIndex(t => t.id === editingId);
@@ -1242,6 +1288,7 @@ async function saveEdit(opts = {}) {
   $('#taskModal').dataset.new = '';
   editingId = null;
   await refresh();
+  if (movedWeek && revealDay(patch.day)) toast(`Moved to ${fmtDatePill(patch.day)}`);
 }
 
 async function deleteTask() {
@@ -1274,6 +1321,20 @@ async function refresh() {
   clampSelectedDay();
   render();
   if (!$('#activityPanel').hidden) { await loadActivity(); renderActivity(); }
+}
+
+/**
+ * Bring `day` on screen, jumping weeks if it falls outside the current view.
+ * Moving a to do to another week used to look like a delete: it saved, then
+ * vanished, because the board stayed put. Returns true if the week changed.
+ */
+function revealDay(day) {
+  if (!day || visibleDays().includes(day)) return false;
+  weekStart = startOfWeek(parseYMD(day));
+  selectedDay = day;
+  render();
+  alignStrip();
+  return true;
 }
 
 function clampSelectedDay() {
