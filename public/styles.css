@@ -1950,3 +1950,12 @@ kbd {
 .signin-card input:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
 .signin-card .btn-primary { height: 38px; justify-content: center; }
 .signin-error { color: var(--danger); font-size: var(--fs-sm); min-height: 15px; }
+
+/* ── storage panel ─────────────────────────────────────────── */
+.storage-warn {
+  margin-top: 8px; padding: 8px 10px;
+  background: var(--danger-bg); border: 1px solid var(--danger-line);
+  border-radius: var(--r-md);
+  color: var(--danger); font-size: var(--fs-sm); line-height: 1.45;
+}
+.storage-here { font-weight: 600; color: var(--ink); }

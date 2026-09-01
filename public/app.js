@@ -95,7 +95,9 @@ function showSignIn(message) {
   setTimeout(() => document.getElementById('signInPw')?.focus(), 60);
 }
 
-const api = {
+/* The remote backend: this app talking to its own server. */
+const remoteBackend = {
+  mode: 'server',
   list:      ()          => fetch('/api/tasks').then(r => r.json()),
   create:    (t)         => fetch('/api/tasks', { method: 'POST', headers: J, body: JSON.stringify(t) }).then(r => r.json()),
   update:    (id, patch) => fetch(`/api/tasks/${id}`, { method: 'PATCH', headers: J, body: JSON.stringify(patch) }).then(r => r.json()),
@@ -106,7 +108,6 @@ const api = {
   gcalPush:  ()          => fetch('/api/gcal/sync', { method: 'POST' }).then(r => r.json()),
   gcalPull:  ()          => fetch('/api/gcal/pull', { method: 'POST' }).then(r => r.json()),
   gcalOff:   ()          => fetch('/api/gcal/disconnect', { method: 'POST' }).then(r => r.json()),
-
   replace:  (list, note) => fetch('/api/tasks', { method: 'PUT', headers: J, body: JSON.stringify({ tasks: list, note }) }).then(r => r.json()),
   settings:     ()     => fetch('/api/settings').then(r => r.json()),
   saveSettings: (s)    => fetch('/api/settings', { method: 'PUT', headers: J, body: JSON.stringify(s) }).then(r => r.json()),
@@ -117,7 +118,66 @@ const api = {
   clearActivity:()     => fetch('/api/activity', { method: 'DELETE' }).then(r => r.json()),
   bulk: (ids, action, patch) => fetch('/api/tasks/bulk', { method: 'POST', headers: J, body: JSON.stringify({ ids, action, patch }) }).then(r => r.json()),
   restore:      (d)    => fetch('/api/restore', { method: 'POST', headers: J, body: JSON.stringify(d) }).then(r => r.json()),
+  backup:       ()     => fetch('/api/backup').then(r => r.json()),
 };
+
+/* The local backend speaks the same names but stores in IndexedDB. Adapted
+   here rather than in local-store.js so that file stays a plain description
+   of the storage, with the app's own vocabulary kept in one place. */
+function adaptLocal(L) {
+  return {
+    mode: 'local',
+    list: L.list, create: L.create, update: L.update, del: L.del,
+    reorder: L.reorder, materialize: L.materialize,
+    replace: (list, note) => L.replace(list, note),
+    settings: L.settings,
+    saveSettings: L.putSettings,
+    templates: L.templates,
+    addTemplate: L.addTemplate,
+    delTemplate: L.removeTemplate,
+    activity: L.activity,
+    clearActivity: L.clearActivity,
+    bulk: (ids, action, patch) => L.bulk({ ids, action, patch }),
+    restore: L.restore,
+    backup: L.backup,
+    ics: L.ics,
+    importAll: L.importAll,
+    isEmpty: L.isEmpty,
+    gcalStatus: L.gcalStatus,
+    gcalPush: async () => ({ error: 'Google sync needs the Flow server' }),
+    gcalPull: async () => ({ error: 'Google sync needs the Flow server' }),
+    gcalOff:  async () => ({ ok: true }),
+  };
+}
+
+/* `api` is rebound at boot once we know which backend is live. Everything
+   downstream calls api.* and never learns which one it got. */
+let api = remoteBackend;
+let STORAGE_MODE = 'server';
+
+/** Does a Flow server actually answer here? Static hosting will not. */
+async function serverAvailable() {
+  try {
+    const r = await fetch('/api/health', { cache: 'no-store' });
+    return r.ok;
+  } catch { return false; }
+}
+
+async function chooseBackend() {
+  const wanted = localStorage.getItem('flow.storage');     // 'local' | 'server' | null
+  const canServe = await serverAvailable();
+  const useLocal = wanted === 'local' || !canServe;
+  if (useLocal) {
+    const { localBackend } = await import('/local-store.js');
+    api = adaptLocal(localBackend);
+    STORAGE_MODE = 'local';
+  } else {
+    api = remoteBackend;
+    STORAGE_MODE = 'server';
+  }
+  document.body.dataset.storage = STORAGE_MODE;
+  return STORAGE_MODE;
+}
 
 const REP_SVG = `<svg viewBox="0 0 24 24"><polyline points="16.5 2.6 20.6 6.7 16.5 10.8"/><path d="M3.4 12.6v-1.9a4 4 0 0 1 4-4h13.2"/><polyline points="7.5 21.4 3.4 17.3 7.5 13.2"/><path d="M20.6 11.4v1.9a4 4 0 0 1-4 4H3.4"/></svg>`;
 
@@ -2186,6 +2246,80 @@ on('#searchInput', 'keydown', (e) => {
 on('#setCapacity', 'change', persistSettings);
 on('#setDayStart', 'change', persistSettings);
 on('#setScale', 'change', persistSettings);
+/* ── storage: where the to dos live ────────────────────────────
+   Local keeps everything in this browser and needs no server at all.
+   Server keeps it wherever the Flow server puts it. The backup file is
+   the bridge: the same JSON restores into either.
+   ─────────────────────────────────────────────────────────── */
+
+function saveAs(name, obj) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function renderStoragePanel() {
+  const where = $('#storageWhere');
+  const swap  = $('#storageSwitch');
+  const copy  = $('#storageCopy');
+  const warn  = $('#storageWarn');
+  if (!where) return;
+
+  const serverThere = await serverAvailable();
+  if (STORAGE_MODE === 'local') {
+    where.innerHTML = 'On <span class="storage-here">this device only</span>, in this browser. ' +
+      'Nothing is uploaded. Clearing site data, or a different browser, means different to dos.';
+    swap.textContent = 'Use the server instead';
+    swap.hidden = !serverThere;
+    copy.hidden = true;
+    warn.hidden = false;
+    warn.textContent = 'Local storage has no backup. Download one regularly — it is the only copy.';
+  } else {
+    where.innerHTML = 'On the <span class="storage-here">Flow server</span> this page came from. ' +
+      'Available from any browser that can sign in.';
+    swap.textContent = 'Keep on this device instead';
+    swap.hidden = false;
+    copy.hidden = false;
+    warn.hidden = true;
+  }
+}
+
+on('#storageSwitch', 'click', async () => {
+  const goingLocal = STORAGE_MODE === 'server';
+  const ok = await confirmInline($('#storageSwitch'), {
+    prompt: goingLocal ? 'Keep to dos on this device?' : 'Use the server instead?',
+    confirmLabel: 'Switch',
+  });
+  if (!ok) return;
+  localStorage.setItem('flow.storage', goingLocal ? 'local' : 'server');
+  location.reload();
+});
+
+/* Copies the server's database into this browser, so switching to local
+   does not look like every to do vanished. */
+on('#storageCopy', 'click', async () => {
+  const ok = await confirmInline($('#storageCopy'), {
+    prompt: 'Copy the server data onto this device?',
+    confirmLabel: 'Copy',
+  });
+  if (!ok) return;
+  try {
+    const doc = await fetch('/api/backup').then(r => r.json());
+    const { localBackend } = await import('/local-store.js');
+    await localBackend.importAll(doc);
+    toast(`Copied ${doc.tasks.length} to dos to this device`);
+  } catch (e) {
+    toast('Copy failed: ' + e.message);
+  }
+});
+
+on('#backupBtn', 'click', async () => {
+  const doc = await api.backup();
+  saveAs(`flow-backup-${ymd(new Date())}.json`, doc);
+});
+
 on('#restoreBtn', 'click', () => $('#restoreFile').click());
 on('#restoreFile', 'change', async (e) => {
   const file = e.target.files?.[0];
@@ -2195,7 +2329,9 @@ on('#restoreFile', 'change', async (e) => {
   try { data = JSON.parse(await file.text()); }
   catch { return toast('That file is not valid JSON'); }
   if (!Array.isArray(data.tasks)) return toast("That doesn't look like a Flow backup");
-  if (!confirm(`Replace everything currently in Flow with this backup?\n\n${data.tasks.length} to dos will be restored. This cannot be undone.`)) return;
+  if (!await confirmInline($('#restoreBtn'), {
+        prompt: `Replace everything with ${data.tasks.length} to dos?`,
+        confirmLabel: 'Replace' })) return;
   const r = await api.restore(data);
   if (r.error) return toast(r.error);
   undoStack.length = 0; redoStack.length = 0;
@@ -2208,12 +2344,39 @@ on('#restoreFile', 'change', async (e) => {
 /* ── settings / sync ───────────────────────────────────────── */
 async function openSettings() {
   $('#settingsModal').hidden = false;
-  $('#icsUrl').textContent = window.location.origin + '/calendar.ics';
+  await renderStoragePanel();
+  renderCalendarPanel();
   await refreshGcalUI();
+}
+
+/* A live subscription needs a URL something else can poll. On this device
+   there is no server to poll, so the honest offer is a one-off export
+   rather than a link that quietly 404s inside someone's calendar app. */
+function renderCalendarPanel() {
+  const local = STORAGE_MODE === 'local';
+  $('#icsHeading').textContent = local ? 'Export to a calendar' : 'Subscribe (one-way, live)';
+  $('#icsNote').textContent = local
+    ? 'To dos on this device cannot be subscribed to — nothing is hosted for a calendar to poll. Export a snapshot instead, or switch to the server for a live feed.'
+    : 'Add this URL in Apple Calendar → File → New Calendar Subscription. It polls and updates automatically.';
+  $('#icsUrl').textContent = local ? '' : window.location.origin + '/calendar.ics';
+  $('#icsUrl').hidden = local;
+  $('#copyIcs').hidden = local;
 }
 on('#settingsBtn', 'click', openSettings);
 on('#railSettings', 'click', openSettings);
 on('#sClose', 'click', () => $('#settingsModal').hidden = true);
+
+on('#downloadIcs', 'click', async () => {
+  const text = STORAGE_MODE === 'local'
+    ? await api.ics()
+    : await fetch('/calendar.ics').then(r => r.text());
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'flow.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Calendar exported');
+});
 
 on('#copyIcs', 'click', async () => {
   try { await navigator.clipboard.writeText($('#icsUrl').textContent); toast('Subscription URL copied'); }
@@ -2342,9 +2505,13 @@ async function boot() {
    anything, so a signed-out visitor meets the sign-in panel rather than an
    empty week that silently failed to fetch. */
 (async () => {
-  try {
-    const s = await fetch('/api/session').then(r => r.json());
-    if (s.authRequired && !s.signedIn) return showSignIn();
-  } catch { /* offline or old build — fall through and let boot try */ }
+  const mode = await chooseBackend();
+  // Local storage answers to nobody: there is no session to establish.
+  if (mode === 'server') {
+    try {
+      const s = await fetch('/api/session').then(r => r.json());
+      if (s.authRequired && !s.signedIn) return showSignIn();
+    } catch { /* fall through and let boot surface the failure */ }
+  }
   await boot();
 })();

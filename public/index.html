@@ -345,23 +345,33 @@
     </section>
 
     <section class="setting">
-      <h3>Backup</h3>
-      <p>Everything lives in <code>data/db.json</code>. Take a copy before anything risky —
-         the server also keeps a rolling <code>db.bak.json</code>.</p>
+      <h3>Where your to dos are kept</h3>
+      <p id="storageWhere">Checking…</p>
       <div class="gcal-btns">
-        <a href="/api/backup" class="btn-ghost" download>Download backup</a>
+        <button class="btn-ghost" id="storageSwitch" type="button">Switch</button>
+        <button class="btn-ghost" id="storageCopy" type="button" hidden>Copy to this device</button>
+      </div>
+      <p class="storage-warn" id="storageWarn" hidden></p>
+    </section>
+
+    <section class="setting">
+      <h3>Backup</h3>
+      <p>Take a copy before anything risky. The file is plain JSON and restores
+         into either kind of storage, so it is also how you move between them.</p>
+      <div class="gcal-btns">
+        <button class="btn-ghost" id="backupBtn" type="button">Download backup</button>
         <button class="btn-ghost" id="restoreBtn" type="button">Restore from file…</button>
         <input type="file" id="restoreFile" accept="application/json,.json" hidden>
       </div>
     </section>
 
     <section class="setting">
-      <h3>Subscribe (one-way, live)</h3>
-      <p>Add this URL in Apple Calendar → File → New Calendar Subscription. It polls and updates automatically.</p>
+      <h3 id="icsHeading">Subscribe (one-way, live)</h3>
+      <p id="icsNote">Add this URL in Apple Calendar → File → New Calendar Subscription. It polls and updates automatically.</p>
       <div class="ics-row">
         <code id="icsUrl"></code>
         <button id="copyIcs" class="btn-ghost">Copy</button>
-        <a id="downloadIcs" href="/calendar.ics" download="flow.ics" class="btn-ghost">Download .ics</a>
+        <button id="downloadIcs" class="btn-ghost" type="button">Download .ics</button>
       </div>
       <p class="hint">Google Calendar can't subscribe to <code>localhost</code>. Use two-way sync below, or expose the port with ngrok/cloudflared.</p>
     </section>

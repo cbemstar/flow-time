@@ -357,6 +357,41 @@ Open **http://localhost:3000**. That's it.
 To run it in the background at login, drop a launchd plist in `~/Library/LaunchAgents` — happy to add one if you want.
 
 
+
+## Where your to dos are kept
+
+Flow runs in two shapes, chosen in **Sync → Where your to dos are kept**.
+
+| | On this device | On the server |
+|---|---|---|
+| Storage | IndexedDB, in this browser | `data/db.json`, or Postgres when deployed |
+| Needs a server | no — works as plain static files | yes |
+| Other devices | no | yes, anywhere that can sign in |
+| Google Calendar | no (needs a server for the OAuth secret) | yes |
+| Calendar subscribe | export a snapshot only | live `.ics` feed |
+| Backup | **yours to take** — nothing else keeps a copy | rolling `db.bak.json`, or the database |
+
+The default is the server when the page is served by one, and this device when
+it is not — so opening `public/` from static hosting simply works, with nothing
+to configure.
+
+**IndexedDB, not `localStorage`.** localStorage caps out near 5MB, blocks the
+main thread, and Safari evicts it after seven days without a visit. Losing
+someone's planner to a storage quirk is not an acceptable failure.
+
+### Moving between them
+
+The backup file is the bridge — the same JSON restores into either. Going from
+server to this device, **Copy to this device** does it in one step.
+
+### One implementation of the rules
+
+`public/lib/domain.js` holds every rule about what a to do is: defaults,
+recurrence, the activity log, bulk edits, the calendar feed. The server imports
+that exact file and so does the browser, so a to do created offline is the same
+shape as one created online. It lives under `public/` because the browser has to
+be able to fetch it; Node imports the same path.
+
 ## Deploying to Vercel
 
 Flow runs in two shapes from the same code. Locally it is a long-lived Node
