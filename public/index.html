@@ -554,6 +554,18 @@
 </div>
 
 <div id="toast" class="toast" hidden></div>
+
+<!-- Sign in — only ever shown when the server asks for it -->
+<div class="modal" id="signIn" hidden>
+  <div class="modal-backdrop"></div>
+  <form class="modal-card signin-card" id="signInForm">
+    <h2>Flow</h2>
+    <p class="signin-note">This planner is private. Enter the password to continue.</p>
+    <input type="password" id="signInPw" placeholder="Password" autocomplete="current-password" required>
+    <div class="signin-error" id="signInError" role="alert"></div>
+    <button class="btn-primary" type="submit">Sign in</button>
+  </form>
+</div>
 <div id="resizeBadge" class="resize-badge" hidden></div>
 
 <script src="/anim.js" type="module"></script>

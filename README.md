@@ -356,6 +356,75 @@ Open **http://localhost:3000**. That's it.
 
 To run it in the background at login, drop a launchd plist in `~/Library/LaunchAgents` — happy to add one if you want.
 
+
+## Deploying to Vercel
+
+Flow runs in two shapes from the same code. Locally it is a long-lived Node
+process writing `data/db.json`. Deployed it is a serverless function backed by
+Postgres, because **Vercel gives every request a fresh, read-only filesystem** —
+a JSON file on disk would not survive between two requests, let alone a redeploy.
+
+### 1. A database
+
+Create a Postgres database and copy its connection string. Vercel Postgres, Neon
+and Supabase all work; the free tier of any of them is far more than this needs.
+
+Flow creates its own table (`flow_state`) on first use — there is no migration
+to run.
+
+### 2. Environment variables
+
+In the Vercel project, **Settings → Environment Variables**:
+
+| Variable | Required | What it does |
+|---|---|---|
+| `DATABASE_URL` | **yes** | Postgres connection string. Without it the app tries to write to a read-only disk. |
+| `APP_PASSWORD` | **yes** | The password for the whole app. |
+| `SESSION_SECRET` | no | Signs the session cookie. Defaults to `APP_PASSWORD`; changing it signs you out. |
+| `CALENDAR_KEY` | no | Lets a calendar app subscribe without signing in. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | no | Google Calendar sync. |
+| `GOOGLE_REDIRECT_URI` | no | Must be `https://<your-app>.vercel.app/oauth/google/callback`, and must match the Google Cloud console exactly. |
+
+**`APP_PASSWORD` is not optional.** Flow has no user accounts — every visitor is
+you. Deployed without a password, anyone who finds the URL can read and edit your
+to dos. The server refuses to start in production without it rather than coming up
+silently unprotected.
+
+### 3. Deploy
+
+Import the GitHub repo in Vercel and deploy. No build step, no framework preset —
+`vercel.json` serves `public/` statically and routes `/api/*`, `/oauth/*` and
+`/calendar.ics` to the function.
+
+### 4. Check it
+
+```
+https://<your-app>.vercel.app/api/health
+```
+
+```json
+{ "ok": true, "storage": { "driver": "postgres", "ok": true, "tasks": 0 }, "auth": "on" }
+```
+
+`driver` must read `postgres`. If it says `file`, `DATABASE_URL` did not reach the
+function and nothing you save will survive.
+
+### 5. Moving your local tasks up
+
+`GET /api/backup` on your local server downloads everything; `POST /api/restore`
+on the deployed one loads it. From the UI: **Sync → Download backup**, then
+**Restore** on the deployed site.
+
+### What is different when deployed
+
+- Storage is Postgres, not `data/db.json`. The rolling backup and corruption
+  recovery are file-driver concerns and do not apply.
+- The single-instance lock is skipped — serverless runs many instances by design,
+  and Postgres arbitrates its own writes.
+- Google tokens live in the database rather than `data/gcal-tokens.json`.
+- The calendar feed needs `?key=<CALENDAR_KEY>`, because a calendar client cannot
+  sign in.
+
 ## Data
 
 Everything is in `./data/`:
@@ -406,12 +475,20 @@ brings edited times back into Flow.
 
 ```
 streamtime-clone/
-├── server.js           # Express server, storage, ICS, Google Calendar
-├── package.json
-├── .env.example        # Copy to .env for Google sync
+├── server.js           # Local dev: listening socket + single-instance lock
+├── api/index.js        # Vercel serverless entry (mounts the same app)
+├── lib/
+│   ├── app.js          # The Express app — routes, ICS, Google Calendar
+│   ├── store.js        # Storage: file driver (local) or Postgres (deployed)
+│   └── auth.js         # Password gate, session cookie, calendar key
+├── vercel.json         # Static from public/, functions for /api and /oauth
+├── .env.example
 ├── public/
 │   ├── index.html
 │   ├── styles.css      # Streamtime-inspired look
-│   └── app.js          # Frontend (drag/drop, modals, state)
-└── data/               # Auto-created, holds db.json + tokens
+│   ├── app.js          # Frontend (drag/drop, modals, state)
+│   ├── anim.js         # Motion layer — entrances, exits, micro-interactions
+│   ├── confirm.js      # In-place confirmation (replaces native confirm)
+│   └── vendor/motion.js
+└── data/               # Local only. db.json + tokens. Never deployed.
 ```

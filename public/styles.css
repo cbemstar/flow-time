@@ -1935,3 +1935,18 @@ kbd {
 .cf-no:hover { background: var(--sunken); color: var(--ink); }
 .cf-no svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .cf-go:focus-visible, .cf-no:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ============================================================
+   SIGN IN
+   ============================================================ */
+.signin-card { width: 320px; display: flex; flex-direction: column; gap: 12px; padding: 26px; text-align: center; }
+.signin-card h2 { font-size: var(--fs-xl); font-weight: 800; letter-spacing: -.01em; }
+.signin-note { font-size: var(--fs-base); color: var(--muted); line-height: 1.45; }
+.signin-card input {
+  height: 38px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  font-size: var(--fs-base); background: var(--sunken);
+}
+.signin-card input:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+.signin-card .btn-primary { height: 38px; justify-content: center; }
+.signin-error { color: var(--danger); font-size: var(--fs-sm); min-height: 15px; }

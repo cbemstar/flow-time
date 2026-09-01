@@ -76,6 +76,25 @@ const $$ = (s) => Array.from(document.querySelectorAll(s));
 
 /* ── api ───────────────────────────────────────────────────── */
 const J = { 'Content-Type': 'application/json' };
+
+/* A deployed Flow sits behind a password. Any request can come back 401 —
+   a session expiring mid-use looks exactly like a dead app otherwise, so
+   the sign-in panel is raised from one place rather than per call site. */
+const _fetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const res = await _fetch(input, init);
+  if (res.status === 401 && String(input).startsWith('/api')) showSignIn();
+  return res;
+};
+
+function showSignIn(message) {
+  const el = document.getElementById('signIn');
+  if (!el || !el.hidden) return;
+  el.hidden = false;
+  if (message) document.getElementById('signInError').textContent = message;
+  setTimeout(() => document.getElementById('signInPw')?.focus(), 60);
+}
+
 const api = {
   list:      ()          => fetch('/api/tasks').then(r => r.json()),
   create:    (t)         => fetch('/api/tasks', { method: 'POST', headers: J, body: JSON.stringify(t) }).then(r => r.json()),
@@ -2117,6 +2136,17 @@ $$('[data-close]').forEach(el => el.addEventListener('click', () => {
 
 on('#railHelp', 'click', () => { $('#helpModal').hidden = false; });
 
+on('#signInForm', 'submit', async (e) => {
+  e.preventDefault();
+  const pw = $('#signInPw').value;
+  const r = await fetch('/api/session', { method: 'POST', headers: J, body: JSON.stringify({ password: pw }) });
+  if (!r.ok) { $('#signInError').textContent = 'That password did not work.'; return; }
+  $('#signIn').hidden = true;
+  $('#signInPw').value = '';
+  $('#signInError').textContent = '';
+  await boot();
+});
+
 /* ── add new / templates ───────────────────────────────────── */
 on('#addNewBtn', 'click', (e) => {
   e.stopPropagation();
@@ -2300,10 +2330,21 @@ document.addEventListener('keydown', (e) => {
 })();
 
 buildPicker();
-(async function boot() {
+async function boot() {
   await loadSettings();
   if (localStorage.getItem('flow.activity') === '1') await toggleActivityPanel(true);
   await loadTemplates();
   await refresh();
   alignStrip();
+}
+
+/* Ask the server whether this deployment wants a password before loading
+   anything, so a signed-out visitor meets the sign-in panel rather than an
+   empty week that silently failed to fetch. */
+(async () => {
+  try {
+    const s = await fetch('/api/session').then(r => r.json());
+    if (s.authRequired && !s.signedIn) return showSignIn();
+  } catch { /* offline or old build — fall through and let boot try */ }
+  await boot();
 })();

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/api/(.*)",   "destination": "/api/index" },
+    { "source": "/oauth/(.*)", "destination": "/api/index" },
+    { "source": "/calendar.ics", "destination": "/api/index" }
+  ]
+}
