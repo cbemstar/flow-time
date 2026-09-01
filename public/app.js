@@ -998,7 +998,8 @@ async function duplicateTask(id, { silent = false } = {}) {
   const src = tasks.find(t => t.id === id);
   if (!src) return null;
   if (!silent) pushUndo('duplicate');
-  const { id: _i, createdAt, updatedAt, gcalEventId, parentId, doneAt, ...rest } = src;
+  const { id: _i, createdAt, updatedAt, gcalEventId, parentId, doneAt,
+          position: _p, ...rest } = src;   // let the server slot the copy after the original
   const copy = await api.create({
     ...rest,
     title: (src.title || 'Untitled') + ' copy',
@@ -1012,10 +1013,13 @@ $$('#ctxMenu > button').forEach(b => b.addEventListener('click', async () => {
   const act = b.dataset.act;
   const id  = ctxTaskId;
   const task = tasks.find(t => t.id === id);
+  // Snapshot the targets first: closeCtx() clears ctxTaskId, which ctxTargets()
+  // reads. Closing before resolving left every action iterating an empty list
+  // while the toast still claimed it had worked.
+  const targets = ctxTargets();
   closeCtx();
   if (!task) return;
 
-  const targets = ctxTargets();
   const many = targets.length > 1 ? ` ${targets.length}` : '';
 
   if (act === 'duplicate') {
